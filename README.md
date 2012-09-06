@@ -15,7 +15,7 @@ Install the necessary Perl dependencies:
 
 Copy over `pagerduty_nagios.cfg`:
 
-    wget http://github.com/PagerDuty/pagerduty-nagios-pl/pagerduty_nagios.cfg
+    wget https://raw.github.com/PagerDuty/pagerduty-nagios-pl/master/pagerduty_nagios.cfg
 
 Open the file in your favorite editor. Enter the service key corresponding to your Nagios service into the pager field.  The service key is a 32 character string that can be found on the service's detail page.
 
@@ -33,7 +33,7 @@ Add the contact "pagerduty" to your Nagios configuration's main contact group. I
 
 Download `pagerduty_nagios.pl`:
 
-    wget http://github.com/PagerDuty/pagerduty-nagios-pl/pagerduty_nagios.pl
+    wget https://raw.github.com/PagerDuty/pagerduty-nagios-pl/master/pagerduty_nagios.pl
     cp pagerduty_nagios.pl /usr/local/bin
 
 Make sure the file is executable by Nagios:
@@ -64,7 +64,7 @@ Install the necessary Perl dependencies:
 
 Download `pagerduty_nagios.cfg`:
 
-    wget http://github.com/PagerDuty/pagerduty-nagios-pl/pagerduty_nagios.cfg
+    wget https://raw.github.com/PagerDuty/pagerduty-nagios-pl/master/pagerduty_nagios.cfg
 
 Open the file in your favorite editor. Enter the service key corresponding to your Nagios service into the pager field. The service key is a 32 character string that can be found on the service's detail page.
 
@@ -86,7 +86,7 @@ Add the contact "pagerduty" to your Nagios configuration's main contact group. I
 
 Download `pagerduty_nagios.pl` and copy it to /usr/local/bin:
 
-    wget http://github.com/PagerDuty/pagerduty-nagios-pl/pagerduty_nagios.pl
+    wget https://raw.github.com/PagerDuty/pagerduty-nagios-pl/master/pagerduty_nagios.pl
     cp pagerduty_nagios.pl /usr/local/bin
 
 Make sure the file is executable by Nagios:
