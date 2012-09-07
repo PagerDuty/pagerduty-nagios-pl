@@ -108,3 +108,8 @@ Add the following line to the crontab:
 Restart Nagios:
 
     /etc/init.d/nagios3 restart
+
+## Using a Proxy
+
+export http_proxy=http://proxy.mydomain.com:port; /usr/local/bin/pagerduty_nagios.pl flush
+
