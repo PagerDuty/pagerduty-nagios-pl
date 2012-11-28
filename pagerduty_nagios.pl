@@ -97,7 +97,7 @@ pagerduty_nagios flush [options]
 # Debian Sarge (Perl 5.8.4)
 # Ubuntu 9.04  (Perl 5.10.0)
 
-my $opt_api_base = "http://events.pagerduty.com/nagios/2010-04-15";
+my $opt_api_base = "https://events.pagerduty.com/nagios/2010-04-15";
 my %opt_fields;
 my $opt_help;
 my $opt_queue_dir = "/tmp/pagerduty_nagios";
