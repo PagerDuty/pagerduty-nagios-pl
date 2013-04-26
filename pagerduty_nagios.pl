@@ -5,7 +5,7 @@
 #
 # Copyright (c) 2011, PagerDuty, Inc. <info@pagerduty.com>
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #     * Redistributions of source code must retain the above copyright
@@ -16,7 +16,7 @@
 #     * Neither the name of PagerDuty Inc nor the
 #       names of its contributors may be used to endorse or promote products
 #       derived from this software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -106,12 +106,12 @@ my $opt_verbose;
 
 sub get_queue_from_dir {
 	my $dh;
-	
+
 	unless (opendir($dh, $opt_queue_dir)) {
 		syslog(LOG_ERR, "opendir %s failed: %s", $opt_queue_dir, $!);
 		die $!;
 	}
-	
+
 	my @files;
 	while (my $f = readdir($dh)) {
 		next unless $f =~ /^pd_(\d+)_\d+\.txt$/;
@@ -119,7 +119,7 @@ sub get_queue_from_dir {
 	}
 
 	closedir($dh);
-	
+
 	@files = sort { @{$a}[0] <=> @{$b}[0] } @files;
 	return map { @{$_}[1] } @files;
 }
@@ -132,36 +132,36 @@ sub flush_queue {
 	# It's not a big deal if we don't get the message through the first time.
 	# It will get sent the next time cron fires.
 	$ua->timeout(15);
-	
+
 	foreach (@files) {
 		my $filename = "$opt_queue_dir/$_";
 		my $fd;
 		my %event;
 
 		print STDERR "==== Now processing: $filename\n" if $opt_verbose;
-		
+
 		unless (open($fd, "<", $filename)) {
 			syslog(LOG_ERR, "open %s for read failed: %s", $filename, $!);
 			die $!;
 		}
-		
+
 		while (<$fd>) {
 			chomp;
 			my @fields = split("=", $_, 2);
 			$event{$fields[0]} = $fields[1];
 		}
-		
+
 		close($fd);
 
 		my $req = POST("$opt_api_base/create_event", \%event);
-		
+
 		if ($opt_verbose) {
 			my $s = $req->as_string;
 			print STDERR "Request:\n$s\n";
 		}
-		
+
 		my $resp = $ua->request($req);
-		
+
 		if ($opt_verbose) {
 			my $s = $resp->as_string;
 			print STDERR "Response:\n$s\n";
@@ -190,10 +190,10 @@ sub flush_queue {
 sub lock_and_flush_queue {
 	# Serialize access to the queue directory while we flush.
 	# (We don't want more than one flush at once.)
-	
+
 	my $lock_filename = "$opt_queue_dir/lockfile";
 	my $lock_fd;
-	
+
 	unless (open($lock_fd, ">", $lock_filename)) {
 		syslog(LOG_ERR, "open %s for write failed: %s", $lock_filename, $!);
 		die $!;
@@ -203,11 +203,11 @@ sub lock_and_flush_queue {
 		syslog(LOG_ERR, "flock %s failed: %s", $lock_filename, $!);
 		die $!;
 	}
-	
+
 	my $ret = flush_queue();
-	
+
 	close($lock_fd);
-	
+
 	return $ret;
 }
 
@@ -225,26 +225,26 @@ sub enqueue_event {
 	%event = (%event, %opt_fields);
 
 	$event{"pd_version"} = "1.0";
-	
+
 	# Right off the bat, enqueue the event.  Nothing tiem consuming should come
 	# before here (i.e. no locks or remote connections), because we want to
 	# make sure we get the event written out within the Nagios notification
 	# timeout.  If we get killed off after that, it isn't a big deal.
-	
+
 	my $filename = sprintf("$opt_queue_dir/pd_%u_%u.txt", time(), $$);
 	my $fd;
-	
+
 	unless (open($fd, ">", $filename)) {
 		syslog(LOG_ERR, "open %s for write failed: %s", $filename, $!);
 		die $!;
 	}
-	
+
 	while ((my $k, my $v) = each %event) {
 		# "=" can't occur in the keyname, and "\n" can't occur anywhere.
 		# (Nagios follows this already, so I think we're safe)
 		print $fd "$k=$v\n";
 	}
-	
+
 	close($fd);
 }
 
@@ -259,7 +259,7 @@ GetOptions("api-base=s" => \$opt_api_base,
 
 pod2usage(2) if @ARGV < 1 ||
 	 (($ARGV[0] ne "enqueue") && ($ARGV[0] ne "flush"));
-	 
+
 pod2usage(-verbose => 3) if $opt_help;
 
 my @log_mode = ("nofatal", "pid");
