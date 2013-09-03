@@ -217,8 +217,8 @@ sub enqueue_event {
 
 	# Scoop all the Nagios related stuff out of the environment.
 	while ((my $k, my $v) = each %ENV) {
-		next unless $k =~ /^NAGIOS_(.*)$/;
-		$event{$1} = $v;
+		next unless $k =~ /^(ICINGA|NAGIOS)_(.*)$/;
+		$event{$2} = $v;
 	}
 
 	# Apply any other variables that were passed in.
