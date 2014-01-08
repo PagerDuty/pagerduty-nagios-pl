@@ -91,6 +91,9 @@ pagerduty_nagios flush [options]
   --verbose
     Turn on extra debugging information.  Useful for debugging.
 
+  --proxy
+    Use a proxy for the connections like "--proxy http://127.0.0.1:8888/"
+
 =cut
 
 # This release tested on:
@@ -102,6 +105,7 @@ my %opt_fields;
 my $opt_help;
 my $opt_queue_dir = "/tmp/pagerduty_nagios";
 my $opt_verbose;
+my $opt_proxy;
 
 
 sub get_queue_from_dir {
@@ -132,6 +136,10 @@ sub flush_queue {
 	# It's not a big deal if we don't get the message through the first time.
 	# It will get sent the next time cron fires.
 	$ua->timeout(15);
+
+	if ($opt_proxy) {
+		$ua->proxy (['http', 'https'], $opt_proxy);
+	}
 
 	foreach (@files) {
 		my $filename = "$opt_queue_dir/$_";
@@ -254,7 +262,8 @@ GetOptions("api-base=s" => \$opt_api_base,
 		   "field=s%" => \%opt_fields,
 		   "help" => \$opt_help,
 		   "queue-dir=s" => \$opt_queue_dir,
-		   "verbose" => \$opt_verbose
+		   "verbose" => \$opt_verbose,
+		   "proxy=s" => \$opt_proxy
 		  ) || pod2usage(2);
 
 pod2usage(2) if @ARGV < 1 ||
