@@ -181,7 +181,7 @@ sub flush_queue {
 		}
 		elsif (is_client_error($resp->code)) {
 			syslog(LOG_WARNING, "Nagios event in file %s REJECTED by the PagerDuty server.  Server says: %s", $filename, $resp->content);
-			unlink($filename);
+			unlink($filename) if ($resp->content !~ /retry later/);
 		}
 		else {
 			# Something else went wrong.
