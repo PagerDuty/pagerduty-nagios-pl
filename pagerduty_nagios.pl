@@ -132,6 +132,7 @@ sub get_queue_from_dir {
 sub flush_queue {
 	my @files = get_queue_from_dir();
 	my $ua = LWP::UserAgent->new;
+        $ua->env_proxy;
 
 	# It's not a big deal if we don't get the message through the first time.
 	# It will get sent the next time cron fires.
