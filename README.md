@@ -109,9 +109,9 @@ Restart Nagios:
 
     /etc/init.d/nagios3 restart
 
-#License
+# License
 
-##License and Copyright
+## License and Copyright
 Copyright (c) 2014, PagerDuty
 All rights reserved.
 
