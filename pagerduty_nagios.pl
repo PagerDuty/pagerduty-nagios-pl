@@ -216,7 +216,7 @@ sub is_variable_allowed {
 sub filter_fields_for_service_type {
 	my (%events_hash) = @_;
 	if ($events_hash{"NAGIOS_pd_nagios_object"} ne "service") {
-		print STDERR "Expected this to be a service, it's $events_hash{'NAGIOS_pd_nagios_object'}. Returning untoutched.\n" if $opt_verbose;
+		print STDERR "Expected this to be a service, it's $events_hash{'NAGIOS_pd_nagios_object'}. Returning untouched.\n" if $opt_verbose;
 		return %events_hash;
 	}
 
