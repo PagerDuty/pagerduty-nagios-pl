@@ -231,7 +231,7 @@ sub filter_fields_for_service_type {
 }
 
 #** @method strip_appname_string_from_events_hash (%event_hash)
-# Given %event_hash, rename all the keys so they don't start with INCINGA_ or NAGIOS_.
+# Given %event_hash, rename all the keys so they don't start with ICINGA_ or NAGIOS_.
 # Returns the altered hash.
 #*
 sub strip_appname_string_from_events_hash {
@@ -239,7 +239,7 @@ sub strip_appname_string_from_events_hash {
 	my %cleaned_events_hash;
 	foreach $k (keys %events_hash) {
 		my $newkey = $k;
-		$newkey =~ s/INCINGA_//;
+		$newkey =~ s/ICINGA_//;
 		$newkey =~ s/NAGIOS_//;
 		print STDERR "Writing cleaned output $k becomes $newkey = $events_hash{$k}\n" if $opt_verbose;
 		$cleaned_events_hash{$newkey}  = $events_hash{$k};
