@@ -1,6 +1,5 @@
 #!/usr/bin/env perl
 
-
 # Nagios plugin that sends Nagios events to PagerDuty.
 #
 # Copyright (c) 2011, PagerDuty, Inc. <info@pagerduty.com>
@@ -37,6 +36,67 @@ use HTTP::Status qw(is_client_error);
 use LWP::UserAgent;
 use File::Path;
 use Fcntl qw(:flock);
+use Sys::Hostname;
+
+# NEW FEATURES WERE DEVELOPED AGAINST PERL v 5.18
+#################################################################################
+# CONFIG BLOCK
+# This is a hack that defines the fields
+# that we DO care about and everything else is just filtered out.
+# This is to prevent events from sending all 200+ fields that Nagios generates
+# over to your phone when a page goes out.
+# SOME OF these are defined in https://github.com/NagiosEnterprises/nagioscore/blob/master/include/macros.h
+# (replace MACRO_ with NAGIOS_)
+# Not all. Welcome to Nagios, enjoy your stay.
+# Note that this does a SUBSTRING MATCH, any environment variable that contains
+# these strings will be dropped.
+# Please keep this list sorted.
+# Note that any unpopulated fields will be dropped and not sent to Pagerduty.
+
+my @keep_nagios_fields =(
+	"NAGIOS_CONTACTPAGER",
+	"NAGIOS_EVENTSTARTTIME",
+	"NAGIOS_HOSTDISPLAYNAME",
+	"NAGIOS_HOSTCHECKCOMMAND",
+	"NAGIOS_HOSTNAME",
+	"NAGIOS_HOSTSTATE",
+	"NAGIOS_HOSTEVENTID",
+	"NAGIOS_HOSTGROUPNAMES",
+	"NAGIOS_HOSTGROUPNOTES",
+	"NAGIOS_HOSTGROUPNOTESURL",
+	"NAGIOS_HOSTINFOURL", # Unlike everything else, this is populated with an error message if unset, handled with @nagios_ignore_value_substrings
+	"NAGIOS_HOSTNAME",
+	"NAGIOS_HOSTNOTES",
+	"NAGIOS_HOSTNOTESURL",
+	"NAGIOS_HOSTOUTPUT",
+	"NAGIOS_NOTIFICATIONTYPE",
+	"NAGIOS_SERVICEDESC",
+	"NAGIOS_SERVICEDISPLAYNAME",
+	"NAGIOS_SERVICEINFOURL", # See note for NAGIOS_HOSTINFOURL
+	"NAGIOS_SERVICEOUTPUT",
+	"NAGIOS_SERVICESTATE",
+	"NAGIOS__HOSTAWS_AZ",
+	"NAGIOS_pd_nagios_object",
+	"NAGIOS_pd_version",
+);
+
+# If NAGIOS_pd_nagios_object == "service", drop these fields even when set (since they're redundant)
+my @delete_when_service = (
+	"NAGIOS_HOSTOUTPUT",
+	"NAGIOS_HOSTCHECKCOMMAND",
+	"NAGIOS_HOSTGROUPNAMES",
+	"NAGIOS_HOSTGROUPNOTES",
+	"NAGIOS_HOSTGROUPNOTESURL",
+	"NAGIOS_HOSTOUTPUT",
+);
+
+# If a value is one of these substrings, drop it as well.
+my @nagios_ignore_value_substrings = (
+	"website_url not set"
+);
+
+# END CONFIG BLOCK
+################################################################################
 
 
 =head1 NAME
@@ -107,6 +167,85 @@ my $opt_queue_dir = "/tmp/pagerduty_nagios";
 my $opt_verbose;
 my $opt_proxy;
 
+#** @method public is_variable_allowed ($variable_name, $variable_value)
+# Given an variable name, see if we want to allow it to be put in a PagerDuty payload.
+# Returns 1 if it should be carried over, 0 otherwise
+#*
+sub is_variable_allowed {
+	my ($variable_name, $variable_value) = @_;
+	my $is_allowed_var = 1;
+
+	# First, check if it's an empty string.
+	if ($variable_value eq "") {
+		print STDERR "Skipping key $variable_name because its value is empty.\n" if $opt_verbose;
+		$is_allowed_var = 0;
+		return $is_allowed_var;
+	}
+
+	# Then, make sure that ICINGA or NAGIOS exists in the variable.
+	if ($variable_name !~ /^(ICINGA|NAGIOS)_(.*)$/) {
+		$is_allowed_var = 0;
+		# We can just escape here.
+		print STDERR "Skipping key $variable_name because it does not match ICINGA or NAGIOS\n" if $opt_verbose;
+		return $is_allowed_var;
+	};
+
+	# Finally, make sure it's a field we want to keep.
+	unless ($variable_name ~~ @keep_nagios_fields) {
+		$is_allowed_var = 0;
+		print STDERR "Skipping key $variable_name because it is not in \@keep_nagios_fields.\n" if $opt_verbose;
+		return $is_allowed_var;
+	}
+
+	# And finally, filter out anything we know is a "bad" value.
+	foreach (@nagios_ignore_value_substrings) {
+		if (index($variable_value, $_) != -1) {
+			$is_allowed_var = 0;
+			print STDERR "Skipping key $variable_name beacuse value $variable_value was found in \@nagios_ignore_value_substrings\n" if $opt_verbose;
+			return $is_allowed_var;
+		}
+	}
+
+	return $is_allowed_var;
+}
+
+#** @method public filter_fields_for_service_type (%event_hash)
+# Given a %event_hash, remove all the fields that are in @delete_when_service
+# Returns the filtered hash.
+#*
+sub filter_fields_for_service_type {
+	my (%events_hash) = @_;
+	if ($events_hash{"NAGIOS_pd_nagios_object"} ne "service") {
+		print STDERR "Expected this to be a service, it's $events_hash{'NAGIOS_pd_nagios_object'}. Returning untouched.\n" if $opt_verbose;
+		return %events_hash;
+	}
+
+	my $k;
+	foreach $k (keys %events_hash) {
+		if ($k ~~ @delete_when_service) {
+			print STDERR "Removing key $k because it is \@delete_when_service\n" if $opt_verbose;
+			delete $events_hash{$k};
+		}
+	}
+	return %events_hash;
+}
+
+#** @method strip_appname_string_from_events_hash (%event_hash)
+# Given %event_hash, rename all the keys so they don't start with ICINGA_ or NAGIOS_.
+# Returns the altered hash.
+#*
+sub strip_appname_string_from_events_hash {
+	my (%events_hash) = @_;
+	my %cleaned_events_hash;
+	foreach $k (keys %events_hash) {
+		my $newkey = $k;
+		$newkey =~ s/ICINGA_//;
+		$newkey =~ s/NAGIOS_//;
+		print STDERR "Writing cleaned output $k becomes $newkey = $events_hash{$k}\n" if $opt_verbose;
+		$cleaned_events_hash{$newkey}  = $events_hash{$k};
+	}
+	return %cleaned_events_hash;
+}
 
 sub get_queue_from_dir {
 	my $dh;
@@ -225,12 +364,22 @@ sub enqueue_event {
 
 	# Scoop all the Nagios related stuff out of the environment.
 	while ((my $k, my $v) = each %ENV) {
-		next unless $k =~ /^(ICINGA|NAGIOS)_(.*)$/;
-		$event{$2} = $v;
+		next unless (is_variable_allowed($k, $v));
+		print STDERR "Writing out k=v $k = $v \n" if $opt_verbose;
+		$event{$k} = $v;
 	}
+
+	# Filter out again anything that's Host-related when we're alerted on Services.
+	if ($event{NAGIOS_pd_nagios_object} eq "service") {
+		%event = filter_fields_for_service_type(%event);
+	}
+
+	%event = strip_appname_string_from_events_hash(%event);
 
 	# Apply any other variables that were passed in.
 	%event = (%event, %opt_fields);
+	# Add in the local hostname to the fields (useful for figuring out which Nagios instance generated this event)
+	$event{"NAGIOS_SERVER"} = hostname;
 
 	$event{"pd_version"} = "1.0";
 
