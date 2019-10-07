@@ -51,7 +51,7 @@ use Sys::Hostname;
 # Note that this does a SUBSTRING MATCH, any environment variable that contains
 # these strings will be dropped.
 # Please keep this list sorted.
-# Note that any unpopulated fields will be dropped and Anot sent to Pagerduty.
+# Note that any unpopulated fields will be dropped and not sent to Pagerduty.
 
 my @keep_nagios_fields =(
 	"NAGIOS_CONTACTPAGER",
